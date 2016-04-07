@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>Javascript Metronome</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width">
+        <style>
+.example {
+	font-family: Arial;
+	font-size: 12px;
+}
+
+.status {
+	width: 100px;
+	height: 200px;
+	padding: 10px;
+	overflow-y: auto;
+}
+
+.statusline {
+	font-size: 10px;
+	background-color: #E0E0E0;
+	margin: 3px 0;
+	padding: 2px;
+}
+
+.metr_input {
+   width: 40px;
+   margin-right: 10px;
+   text-align: center;
+}
+
+#count {
+	width: 50px;
+	display: inline-block;
+	text-align: right;
+}
+        </style>
+    </head>
+    <body>
+    	<table class="example">
+    		<tr>
+    			<td><div id="metronome_container"></div></td>
+    		</tr>
+    		<tr>
+    			<td colspan=2 id="inputs"></td>
+			</tr>
+		</table>
+		
+		<button onclick="playBeat()">Play Beat</button>
+		
+		<button onclick="clearBeat()">Reset Beat</button>
+
+		<div id="notes"></div>
+
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js"></script>
+        <script src="metronome.js"></script>
+		
+		<audio src="bass_drum.wav" id="bass_drum_1"></audio>
+		<audio src="bass_drum.wav" id="bass_drum_2"></audio>
+		<audio src="bass_drum.wav" id="bass_drum_3"></audio>
+		<audio src="bass_drum.wav" id="bass_drum_4"></audio>
+		<audio src="bass_drum.wav" id="bass_drum_5"></audio>
+		<audio src="electric_snare.wav" id="electric_snare_1"></audio>
+		<audio src="electric_snare.wav" id="electric_snare_2"></audio>
+		<audio src="electric_snare.wav" id="electric_snare_3"></audio>
+		<audio src="electric_snare.wav" id="electric_snare_4"></audio>
+		<audio src="electric_snare.wav" id="electric_snare_5"></audio>
+		<audio src="clap.wav" id="clap_1"></audio>
+		<audio src="clap.wav" id="clap_2"></audio>
+		<audio src="clap.wav" id="clap_3"></audio>
+		<audio src="clap.wav" id="clap_4"></audio>
+		<audio src="clap.wav" id="clap_5"></audio>
+		
+        <script>
+document.onkeydown = function (e) {
+	var pressedKey;
+    if (document.all) { e = window.event;
+        pressedKey = e.keyCode; }
+    if (e.which) {
+        pressedKey = e.which;
+    }
+	
+	var validKey = true;
+	
+	if (pressedKey == 66) {
+		play_bass_drum();
+	} else if (pressedKey == 83) {
+		play_electric_snare();
+	} else if (pressedKey == 67) {
+		play_clap();
+	} else {
+		validKey = false;
+	}
+	
+	if (validKey) {
+		myFunction();
+	}
+}
+		
+var noteValueMappings = { 4 : "semibrieve", 3 : "dotted_minum", 2 : "minum", 1.5 : "dotted_crotchet", 1 : "crotchet", 0.75 : "dotted_quaver", 0.5 : "quaver", 0.25 : "semiquaver" };
+var restValueMappings = { 4 : "semibrieve_rest", 3 : "dotted_minum_rest", 2 : "minum_rest", 1.5 : "dotted_crotchet_rest", 1 : "crotchet_rest", 0.75 : "dotted_quaver_rest", 0.5 : "quaver_rest", 0.25 : "semiquaver_rest" };
+var valueList = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
+var tab = [];
+var bpm = 120;
+var beatCount = 0;
+var time = null;
+var noteLength = null;
+var bass_drum_sfx = [];
+var electric_snare_sfx = [];
+var clap_sfx = [];
+for (var i = 1; i <= 5; i++) {
+	bass_drum_sfx.push(document.getElementById("bass_drum_" + i));
+	electric_snare_sfx.push(document.getElementById("electric_snare_" + i));
+	clap_sfx.push(document.getElementById("clap_" + i));
+}
+var bass_drum_sfx_counter = 0;
+var electric_snare_sfx_counter = 0;
+var clap_sfx_counter = 0;
+
+function play_bass_drum() {
+	bass_drum_sfx[bass_drum_sfx_counter].play();
+	if (bass_drum_sfx_counter < 4) {
+		bass_drum_sfx_counter++;
+	} else {
+		bass_drum_sfx_counter = 0;
+	}
+}
+
+function play_clap() {
+	clap_sfx[clap_sfx_counter].play();
+	if (clap_sfx_counter < 4) {
+		clap_sfx_counter++;
+	} else {
+		clap_sfx_counter = 0;
+	}
+}
+
+function play_electric_snare() {
+	electric_snare_sfx[electric_snare_sfx_counter].play();
+	if (electric_snare_sfx_counter < 4) {
+		electric_snare_sfx_counter++;
+	} else {
+		electric_snare_sfx_counter = 0;
+	}
+}
+
+function myFunction() {
+	if (time != null) {
+		var currTime = Date.now() - time;
+		
+		noteLength = closest(currTime / 60000 * bpm, valueList);
+		tab.push(currTime);
+		
+		beatCount += noteLength;
+		
+		if (beatCount >= 4) {
+			var restLength = beatCount - 4;
+			var shortenedLength = noteLength - restLength;
+			
+			var shortenedNoteImage = document.createElement("img");
+			shortenedNoteImage.src = "images/notes/" + noteValueMappings[closest(shortenedLength, valueList)] + ".png";
+			var breakImage = document.createElement("img");
+			breakImage.src = "images/break.png";
+			var restImage = document.createElement("img");
+			restImage.src = "images/rests/" + restValueMappings[closest(restLength, valueList)] + ".png";
+			
+			var src = document.getElementById("notes");
+			if (shortenedLength > 0) {
+				src.appendChild(shortenedNoteImage);
+			}
+			src.appendChild(breakImage);
+			if (restLength > 0) {
+				src.appendChild(restImage);
+			}
+			
+			beatCount = restLength;
+		} else {
+			var img = document.createElement("img");
+			img.src = "images/notes/" + noteValueMappings[closest(noteLength, valueList)] + ".png";
+
+			var src = document.getElementById("notes");
+			src.appendChild(img);
+		}
+	} else {
+		tab.push(0);
+	}
+	time = Date.now();
+}
+
+function closest(num, arr) {
+	var curr = arr[0];
+	var diff = Math.abs (num - curr);
+	for (var val = 0; val < arr.length; val++) {
+		var newdiff = Math.abs (num - arr[val]);
+		if (newdiff < diff) {
+			diff = newdiff;
+			curr = arr[val];
+		}
+	}
+	return curr;
+}
+
+function clearBeat() {
+	var notes = document.getElementById("notes");
+	while (notes.firstChild) {
+		notes.removeChild(notes.firstChild);
+	}
+	beatCount = 0;
+	time = null;
+	noteLength = null;
+	tab = [];
+}
+
+function playBeat() {
+	var timeCounter = 0;
+	for (var i = 0; i < tab.length; i++) {
+		timeCounter += tab[i];
+		setTimeout(function() {
+			play_bass_drum();
+		}, timeCounter);
+	}
+}
+		
+/*global $ Raphael soundManager metronome*/
+
+function done() {
+    $("<div />").html("Done!").addClass("statusline").css("background-color", "#FFFF99").appendTo(".status");
+    $("#startstop").html("start");
+}
+
+var paper = Raphael("metronome_container", 200, 200);
+
+var m = metronome({
+    len: 200,
+    angle: 20,
+    complete: done,
+    paper: paper,
+    audio: "tick.wav"
+});
+
+m.make_input("#inputs");
+
+m.shapes().outline.attr("fill", "#00A30F");
+m.shapes().arm.attr("stroke", "#EEE");
+        </script>
+    </body>
+</html>
